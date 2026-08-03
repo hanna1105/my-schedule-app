@@ -16,7 +16,10 @@ import {
   Clock,
   FolderPlus,
   Palette,
-  X
+  X,
+  Save,
+  Image as ImageIcon,
+  Check
 } from 'lucide-react'
 import {
   format,
@@ -36,31 +39,72 @@ import {
 } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
 
-// =========================================================================
-//  [나만의 자유 커스텀 디자인 설정 구역]
-//  아래 값만 변경하면 포인트 색상, 배경 이미지, 패턴, 글씨 색상이 모두 바뀝니다!
-// =========================================================================
-const CUSTOM_DESIGN = {
-  // 1. 포인트 컬러 (달력 이모티콘, +일정추가 버튼, 오늘 날짜 배지, '추가' 링크 등)
-  // 예시 색상: '#cdb4db' (Pink Orchid), '#ffafcc' (Pastel Petal), '#ffafcc' (Blush Pop), '#bde0fe' (Icy Blue), '#a2d2ff' (Sky Blue)
-  primaryColor: '#ffafcc',
-
-  // 2. 전체 앱 배경 (이미지/패턴 URL 또는 색상)
-  // - 이미지/패턴 사용 시: "url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809')"
-  // - 단색만 사용 시: "none"
-  backgroundImage: "url('https://chatgpt.com/backend-api/estuary/content?id=file_000000008ee48211ba2441e7f82b160b&ts=496037&p=fs&cid=1&sig=9f98f46db3fe986c7c603a7db8784f10fea8761ec5e0272a7f5bcc53c88338d8&v=0)",
-  backgroundColor: "#F1F5F9", 
-
-  // 3. 주요 글씨 색상
-  headerTitleColor: '#1E293B',  // 상단 대제목 글자색
-  bodyTextColor: '#475569',      // 본문 / 카테고리 글자색
-  calendarDateColor: '#334155',  // 평일 날짜 글자색
-  sundayColor: '#ffafcc',        // 일요일 글자색
-  saturdayColor: '#a2d2ff',      // 토요일 글자색
-
-  // 4. 카드 및 모달 배경색
-  cardBackgroundColor: '#FFFFFF',
+// 기본 테마 설정
+const DEFAULT_THEME = {
+  id: 'default',
+  name: '기본 보라',
+  primaryColor: '#4F46E5',
+  bgColor: '#F1F5F9',
+  bgImage: '',
+  headerTextColor: '#1E293B',
+  bodyTextColor: '#475569',
+  sundayColor: '#EF4444',
+  saturdayColor: '#3B82F6',
+  cardBgColor: '#FFFFFF'
 }
+
+// 기본 프리셋 테마 목록
+const INITIAL_PRESET_THEMES = [
+  DEFAULT_THEME,
+  {
+    id: 'pink',
+    name: '감성 핑크',
+    primaryColor: '#EC4899',
+    bgColor: '#FDF2F8',
+    bgImage: '',
+    headerTextColor: '#831843',
+    bodyTextColor: '#9D174D',
+    sundayColor: '#EF4444',
+    saturdayColor: '#3B82F6',
+    cardBgColor: '#FFFFFF'
+  },
+  {
+    id: 'emerald',
+    name: '민트 에메랄드',
+    primaryColor: '#10B981',
+    bgColor: '#ECFDF5',
+    bgImage: '',
+    headerTextColor: '#064E3B',
+    bodyTextColor: '#047857',
+    sundayColor: '#EF4444',
+    saturdayColor: '#3B82F6',
+    cardBgColor: '#FFFFFF'
+  },
+  {
+    id: 'amber',
+    name: '따뜻한 앰버',
+    primaryColor: '#F59E0B',
+    bgColor: '#FFFBEB',
+    bgImage: '',
+    headerTextColor: '#78350F',
+    bodyTextColor: '#B45309',
+    sundayColor: '#EF4444',
+    saturdayColor: '#3B82F6',
+    cardBgColor: '#FFFFFF'
+  },
+  {
+    id: 'dark',
+    name: '다크 레트로',
+    primaryColor: '#6366F1',
+    bgColor: '#0F172A',
+    bgImage: '',
+    headerTextColor: '#F8FAFC',
+    bodyTextColor: '#CBD5E1',
+    sundayColor: '#F87171',
+    saturdayColor: '#60A5FA',
+    cardBgColor: '#1E293B'
+  }
+]
 
 const COLOR_PRESETS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6']
 
@@ -78,10 +122,18 @@ export default function ScheduleApp() {
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('all')
 
+  // --- 실시간 테마 커스텀 상태 ---
+  const [activeTheme, setActiveTheme] = useState(DEFAULT_THEME)
+  const [savedThemes, setSavedThemes] = useState(INITIAL_PRESET_THEMES)
+  const [newThemeName, setNewThemeName] = useState('')
+  const [showThemeEditor, setShowThemeEditor] = useState(false)
+
+  // Modal States
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState(null)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
 
+  // Schedule Form States
   const [scheduleTitle, setScheduleTitle] = useState('')
   const [scheduleDesc, setScheduleDesc] = useState('')
   const [scheduleStart, setScheduleStart] = useState('')
@@ -89,8 +141,38 @@ export default function ScheduleApp() {
   const [scheduleCategoryId, setScheduleCategoryId] = useState('')
   const [scheduleBgColor, setScheduleBgColor] = useState('#3B82F6')
 
+  // Category Form States
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#3B82F6')
+
+  // 로컬 스토리지에서 저장된 테마 불러오기
+  useEffect(() => {
+    try {
+      const localThemes = localStorage.getItem('my_custom_themes')
+      if (localThemes) {
+        const parsed = JSON.parse(localThemes)
+        if (Array.isArray(parsed) && parsed.length > 0) setSavedThemes(parsed)
+      }
+      const localActiveTheme = localStorage.getItem('my_active_theme')
+      if (localActiveTheme) {
+        const parsedActive = JSON.parse(localActiveTheme)
+        if (parsedActive) setActiveTheme(parsedActive)
+      }
+    } catch (e) {
+      console.error('Error loading themes:', e)
+    }
+  }, [])
+
+  const saveThemesToLocal = (themesList, currentActive) => {
+    try {
+      localStorage.setItem('my_custom_themes', JSON.stringify(themesList))
+      if (currentActive) {
+        localStorage.setItem('my_active_theme', JSON.stringify(currentActive))
+      }
+    } catch (e) {
+      console.error('Error saving themes:', e)
+    }
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -144,6 +226,40 @@ export default function ScheduleApp() {
     await supabase.auth.signOut()
   }
 
+  // 테마 적용 및 저장
+  const applyTheme = (theme) => {
+    setActiveTheme(theme)
+    saveThemesToLocal(savedThemes, theme)
+  }
+
+  const handleSaveCurrentTheme = () => {
+    if (!newThemeName.trim()) return alert('저장할 테마 이름을 입력하세요.')
+    const newThemeObj = {
+      ...activeTheme,
+      id: 'custom_' + Date.now(),
+      name: newThemeName.trim()
+    }
+    const updatedList = [...savedThemes, newThemeObj]
+    setSavedThemes(updatedList)
+    setActiveTheme(newThemeObj)
+    saveThemesToLocal(updatedList, newThemeObj)
+    setNewThemeName('')
+    alert(`'${newThemeObj.name}' 테마가 저장되었습니다!`)
+  }
+
+  const handleDeleteTheme = (themeId, e) => {
+    e.stopPropagation()
+    if (savedThemes.length <= 1) return alert('최소 1개의 테마는 남아있어야 합니다.')
+    if (!confirm('이 테마를 삭제하시겠습니까?')) return
+
+    const updatedList = savedThemes.filter(t => t.id !== themeId)
+    setSavedThemes(updatedList)
+    const nextActive = updatedList[0] || DEFAULT_THEME
+    setActiveTheme(nextActive)
+    saveThemesToLocal(updatedList, nextActive)
+  }
+
+  // Schedule CRUD
   const openNewScheduleModal = (defaultDate = null) => {
     setEditingSchedule(null)
     setScheduleTitle('')
@@ -152,7 +268,7 @@ export default function ScheduleApp() {
     setScheduleStart(format(targetDate, "yyyy-MM-dd'T'10:00"))
     setScheduleEnd(format(targetDate, "yyyy-MM-dd'T'11:00"))
     setScheduleCategoryId(categories[0]?.id || '')
-    setScheduleBgColor(categories[0]?.color || '#3B82F6')
+    setScheduleBgColor(categories[0]?.color || activeTheme.primaryColor)
     setShowScheduleModal(true)
   }
 
@@ -163,7 +279,7 @@ export default function ScheduleApp() {
     setScheduleStart(sched.start_time ? format(parseISO(sched.start_time), "yyyy-MM-dd'T'HH:mm") : '')
     setScheduleEnd(sched.end_time ? format(parseISO(sched.end_time), "yyyy-MM-dd'T'HH:mm") : '')
     setScheduleCategoryId(sched.category_id || '')
-    setScheduleBgColor(sched.background_style || '#3B82F6')
+    setScheduleBgColor(sched.background_style || activeTheme.primaryColor)
     setShowScheduleModal(true)
   }
 
@@ -239,11 +355,11 @@ export default function ScheduleApp() {
           <form onSubmit={handleAuth} className="space-y-3">
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="이메일" className="w-full border p-2.5 rounded-xl text-sm" />
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="비밀번호" className="w-full border p-2.5 rounded-xl text-sm" />
-            <button type="submit" style={{ backgroundColor: CUSTOM_DESIGN.primaryColor }} className="w-full text-white py-3 rounded-xl font-bold">
+            <button type="submit" style={{ backgroundColor: activeTheme.primaryColor }} className="w-full text-white py-3 rounded-xl font-bold shadow-md">
               {isSignUp ? '회원가입' : '로그인'}
             </button>
           </form>
-          <button onClick={() => setIsSignUp(!isSignUp)} style={{ color: CUSTOM_DESIGN.primaryColor }} className="mt-4 text-xs underline block mx-auto font-bold">
+          <button onClick={() => setIsSignUp(!isSignUp)} style={{ color: activeTheme.primaryColor }} className="mt-4 text-xs underline block mx-auto font-bold">
             {isSignUp ? '로그인으로 전환' : '회원가입으로 전환'}
           </button>
         </div>
@@ -260,10 +376,10 @@ export default function ScheduleApp() {
     const weekDays = ['일', '월', '화', '수', '목', '금', '토']
 
     return (
-      <div style={{ backgroundColor: CUSTOM_DESIGN.cardBackgroundColor }} className="rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80 text-center text-xs font-bold py-3">
+      <div style={{ backgroundColor: activeTheme.cardBgColor }} className="rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/50 text-center text-xs font-bold py-3">
           {weekDays.map((day, idx) => (
-            <div key={day} style={{ color: idx === 0 ? CUSTOM_DESIGN.sundayColor : idx === 6 ? CUSTOM_DESIGN.saturdayColor : CUSTOM_DESIGN.bodyTextColor }}>{day}</div>
+            <div key={day} style={{ color: idx === 0 ? activeTheme.sundayColor : idx === 6 ? activeTheme.saturdayColor : activeTheme.bodyTextColor }}>{day}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-slate-100">
@@ -276,13 +392,13 @@ export default function ScheduleApp() {
               <div
                 key={day.toString()}
                 onClick={() => openNewScheduleModal(day)}
-                className={`min-h-[110px] p-2 transition hover:bg-slate-50 cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/40 text-slate-300' : ''}`}
+                className={`min-h-[110px] p-2 transition hover:opacity-90 cursor-pointer ${!isCurrentMonth ? 'opacity-30' : ''}`}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span
                     style={{
-                      backgroundColor: isToday ? CUSTOM_DESIGN.primaryColor : 'transparent',
-                      color: isToday ? '#FFFFFF' : day.getDay() === 0 ? CUSTOM_DESIGN.sundayColor : day.getDay() === 6 ? CUSTOM_DESIGN.saturdayColor : CUSTOM_DESIGN.calendarDateColor
+                      backgroundColor: isToday ? activeTheme.primaryColor : 'transparent',
+                      color: isToday ? '#FFFFFF' : day.getDay() === 0 ? activeTheme.sundayColor : day.getDay() === 6 ? activeTheme.saturdayColor : activeTheme.bodyTextColor
                     }}
                     className="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
                   >
@@ -294,8 +410,8 @@ export default function ScheduleApp() {
                     <div
                       key={sched.id}
                       onClick={(e) => { e.stopPropagation(); openEditScheduleModal(sched); }}
-                      style={{ backgroundColor: sched.background_style || CUSTOM_DESIGN.primaryColor }}
-                      className="truncate rounded-md px-2 py-0.5 text-xs text-white font-semibold"
+                      style={{ backgroundColor: sched.background_style || activeTheme.primaryColor }}
+                      className="truncate rounded-md px-2 py-0.5 text-xs text-white font-semibold shadow-2xs"
                     >
                       {sched.title}
                     </div>
@@ -312,61 +428,64 @@ export default function ScheduleApp() {
   return (
     <div
       style={{
-        backgroundImage: CUSTOM_DESIGN.backgroundImage !== 'none' ? CUSTOM_DESIGN.backgroundImage : undefined,
-        backgroundColor: CUSTOM_DESIGN.backgroundColor,
+        backgroundColor: activeTheme.bgColor,
+        backgroundImage: activeTheme.bgImage ? `url('${activeTheme.bgImage}')` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
-        color: CUSTOM_DESIGN.bodyTextColor
+        color: activeTheme.bodyTextColor
       }}
-      className="min-h-screen p-4 md:p-8"
+      className="min-h-screen p-4 md:p-8 transition-all duration-300"
     >
-      <header style={{ backgroundColor: CUSTOM_DESIGN.cardBackgroundColor }} className="max-w-7xl mx-auto flex items-center justify-between gap-4 mb-6 rounded-2xl p-4 shadow-sm border border-slate-200">
-        <div className="flex items-center gap-2">
-          {/* 달력 이모티콘 포인트 색상 */}
-          <div style={{ backgroundColor: CUSTOM_DESIGN.primaryColor }} className="h-9 w-9 rounded-xl flex items-center justify-center text-white shadow-sm">
+      {/* Header */}
+      <header style={{ backgroundColor: activeTheme.cardBgColor }} className="max-w-7xl mx-auto flex items-center justify-between gap-4 mb-6 rounded-2xl p-4 shadow-sm border border-slate-200/80">
+        <div className="flex items-center gap-3">
+          <div style={{ backgroundColor: activeTheme.primaryColor }} className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-md">
             <CalendarIcon className="h-5 w-5" />
           </div>
-          <h1 style={{ color: CUSTOM_DESIGN.headerTitleColor }} className="text-lg font-bold">일정 관리 툴</h1>
+          <div>
+            <h1 style={{ color: activeTheme.headerTextColor }} className="text-lg font-bold">일정 관리 툴</h1>
+            <p className="text-xs opacity-70">{user.email}</p>
+          </div>
         </div>
 
         {/* 탭 버튼들 */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setView('month')}
-            style={{ backgroundColor: view === 'month' ? CUSTOM_DESIGN.primaryColor : '#F1F5F9', color: view === 'month' ? '#FFFFFF' : CUSTOM_DESIGN.bodyTextColor }}
-            className="px-3.5 py-1.5 text-xs font-bold rounded-xl transition shadow-2xs"
+            style={{ backgroundColor: view === 'month' ? activeTheme.primaryColor : '#F1F5F9', color: view === 'month' ? '#FFFFFF' : activeTheme.bodyTextColor }}
+            className="px-3.5 py-1.5 text-xs font-bold rounded-xl transition"
           >
             월간
           </button>
           <button
             onClick={() => setView('week')}
-            style={{ backgroundColor: view === 'week' ? CUSTOM_DESIGN.primaryColor : '#F1F5F9', color: view === 'week' ? '#FFFFFF' : CUSTOM_DESIGN.bodyTextColor }}
-            className="px-3.5 py-1.5 text-xs font-bold rounded-xl transition shadow-2xs"
+            style={{ backgroundColor: view === 'week' ? activeTheme.primaryColor : '#F1F5F9', color: view === 'week' ? '#FFFFFF' : activeTheme.bodyTextColor }}
+            className="px-3.5 py-1.5 text-xs font-bold rounded-xl transition"
           >
             주간
           </button>
           <button
             onClick={() => setView('day')}
-            style={{ backgroundColor: view === 'day' ? CUSTOM_DESIGN.primaryColor : '#F1F5F9', color: view === 'day' ? '#FFFFFF' : CUSTOM_DESIGN.bodyTextColor }}
-            className="px-3.5 py-1.5 text-xs font-bold rounded-xl transition shadow-2xs"
+            style={{ backgroundColor: view === 'day' ? activeTheme.primaryColor : '#F1F5F9', color: view === 'day' ? '#FFFFFF' : activeTheme.bodyTextColor }}
+            className="px-3.5 py-1.5 text-xs font-bold rounded-xl transition"
           >
             일간
           </button>
         </div>
 
+        {/* 네비게이션 및 일정 추가 */}
         <div className="flex items-center gap-2">
-          <button onClick={prevDate} className="p-2 hover:bg-slate-100 rounded-xl transition text-slate-600"><ChevronLeft className="h-4 w-4" /></button>
-          <span style={{ color: CUSTOM_DESIGN.headerTitleColor }} className="text-sm font-bold min-w-[100px] text-center">
+          <button onClick={prevDate} className="p-2 hover:bg-slate-100 rounded-xl transition"><ChevronLeft className="h-4 w-4" /></button>
+          <span style={{ color: activeTheme.headerTextColor }} className="text-sm font-bold min-w-[100px] text-center">
             {format(currentDate, 'yyyy년 M월', { locale: ko })}
           </span>
-          <button onClick={nextDate} className="p-2 hover:bg-slate-100 rounded-xl transition text-slate-600"><ChevronRight className="h-4 w-4" /></button>
+          <button onClick={nextDate} className="p-2 hover:bg-slate-100 rounded-xl transition"><ChevronRight className="h-4 w-4" /></button>
           
-          {/* + 일정 추가 버튼 포인트 색상 */}
           <button
             onClick={() => openNewScheduleModal()}
-            style={{ backgroundColor: CUSTOM_DESIGN.primaryColor }}
-            className="text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-md hover:opacity-90 transition"
+            style={{ backgroundColor: activeTheme.primaryColor }}
+            className="text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md hover:opacity-90 transition"
           >
             <Plus className="h-4 w-4" /> 일정 추가
           </button>
@@ -374,25 +493,174 @@ export default function ScheduleApp() {
         </div>
       </header>
 
+      {/* Main Grid */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Sidebar Controls */}
         <aside className="space-y-6">
-          <div style={{ backgroundColor: CUSTOM_DESIGN.cardBackgroundColor }} className="rounded-2xl p-5 shadow-sm border border-slate-200">
+          {/* Categories */}
+          <div style={{ backgroundColor: activeTheme.cardBgColor }} className="rounded-2xl p-5 shadow-sm border border-slate-200/80">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <h3 className="text-xs font-bold opacity-60 uppercase tracking-wider flex items-center gap-1">
                 <Tag className="h-3.5 w-3.5" /> 카테고리
               </h3>
-              {/* '추가' 링크 포인트 색상 */}
-              <button onClick={() => setShowCategoryModal(true)} style={{ color: CUSTOM_DESIGN.primaryColor }} className="text-xs font-bold hover:underline">
+              <button onClick={() => setShowCategoryModal(true)} style={{ color: activeTheme.primaryColor }} className="text-xs font-bold hover:underline">
                 추가
               </button>
             </div>
-            <button onClick={() => setSelectedCategory('all')} className="w-full text-left text-xs p-2 rounded-xl bg-slate-50 font-semibold mb-2">전체 보기</button>
+            <button onClick={() => setSelectedCategory('all')} className="w-full text-left text-xs p-2.5 rounded-xl bg-slate-50 font-semibold mb-2">전체 보기</button>
             {categories.map((cat) => (
-              <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className="w-full flex items-center gap-2 text-xs p-2 rounded-xl hover:bg-slate-50 font-semibold">
+              <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className="w-full flex items-center gap-2 text-xs p-2.5 rounded-xl hover:bg-slate-50 font-semibold">
                 <span className="h-3 w-3 rounded-full" style={{ backgroundColor: cat.color }} />
                 {cat.name}
               </button>
             ))}
+          </div>
+
+          {/* Real-time Theme Editor & Presets */}
+          <div style={{ backgroundColor: activeTheme.cardBgColor }} className="rounded-2xl p-5 shadow-sm border border-slate-200/80 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold opacity-60 uppercase tracking-wider flex items-center gap-1">
+                <Palette className="h-3.5 w-3.5" /> 실시간 테마 커스텀
+              </h3>
+              <button
+                onClick={() => setShowThemeEditor(!showThemeEditor)}
+                style={{ color: activeTheme.primaryColor }}
+                className="text-xs font-bold underline"
+              >
+                {showThemeEditor ? '닫기' : '편집기'}
+              </button>
+            </div>
+
+            {/* Saved Themes List */}
+            <div>
+              <p className="text-[11px] opacity-60 mb-2">저장된 테마 목록 (클릭하면 변경):</p>
+              <div className="grid grid-cols-2 gap-2">
+                {savedThemes.map((theme) => (
+                  <div
+                    key={theme.id}
+                    onClick={() => applyTheme(theme)}
+                    style={{ borderColor: activeTheme.id === theme.id ? activeTheme.primaryColor : '#E2E8F0' }}
+                    className={`flex items-center justify-between p-2 rounded-xl border cursor-pointer hover:shadow-2xs transition ${activeTheme.id === theme.id ? 'ring-2 ring-indigo-200' : ''}`}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: theme.primaryColor }} />
+                      <span className="text-xs font-bold truncate">{theme.name}</span>
+                    </div>
+                    {savedThemes.length > 1 && !INITIAL_PRESET_THEMES.find(t => t.id === theme.id) && (
+                      <button onClick={(e) => handleDeleteTheme(theme.id, e)} className="text-slate-300 hover:text-red-500 p-0.5">
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Color Picker Controls */}
+            {showThemeEditor && (
+              <div className="pt-4 border-t border-slate-100 space-y-3 text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold mb-1">포인트 색상 (Primary)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={activeTheme.primaryColor}
+                      onChange={(e) => setActiveTheme({ ...activeTheme, primaryColor: e.target.value })}
+                      className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                    />
+                    <input
+                      type="text"
+                      value={activeTheme.primaryColor}
+                      onChange={(e) => setActiveTheme({ ...activeTheme, primaryColor: e.target.value })}
+                      className="w-full border p-1 rounded-md text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold mb-1">배경 색상 (Background)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={activeTheme.bgColor}
+                      onChange={(e) => setActiveTheme({ ...activeTheme, bgColor: e.target.value })}
+                      className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                    />
+                    <input
+                      type="text"
+                      value={activeTheme.bgColor}
+                      onChange={(e) => setActiveTheme({ ...activeTheme, bgColor: e.target.value })}
+                      className="w-full border p-1 rounded-md text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold mb-1">배경 이미지/패턴 URL</label>
+                  <input
+                    type="text"
+                    value={activeTheme.bgImage || ''}
+                    onChange={(e) => setActiveTheme({ ...activeTheme, bgImage: e.target.value })}
+                    placeholder="https://... 이미지 URL 주소"
+                    className="w-full border p-1.5 rounded-md text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold mb-1">상단 타이틀 글자색</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={activeTheme.headerTextColor}
+                      onChange={(e) => setActiveTheme({ ...activeTheme, headerTextColor: e.target.value })}
+                      className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                    />
+                    <input
+                      type="text"
+                      value={activeTheme.headerTextColor}
+                      onChange={(e) => setActiveTheme({ ...activeTheme, headerTextColor: e.target.value })}
+                      className="w-full border p-1 rounded-md text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold mb-1">본문/카테고리 글자색</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={activeTheme.bodyTextColor}
+                      onChange={(e) => setActiveTheme({ ...activeTheme, bodyTextColor: e.target.value })}
+                      className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                    />
+                    <input
+                      type="text"
+                      value={activeTheme.bodyTextColor}
+                      onChange={(e) => setActiveTheme({ ...activeTheme, bodyTextColor: e.target.value })}
+                      className="w-full border p-1 rounded-md text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Save Theme Action */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <input
+                    type="text"
+                    value={newThemeName}
+                    onChange={(e) => setNewThemeName(e.target.value)}
+                    placeholder="새 테마 이름 (예: 나만의 핑크)"
+                    className="w-full border p-1.5 rounded-md text-xs"
+                  />
+                  <button
+                    onClick={handleSaveCurrentTheme}
+                    style={{ backgroundColor: activeTheme.primaryColor }}
+                    className="w-full text-white py-1.5 rounded-md font-bold flex items-center justify-center gap-1"
+                  >
+                    <Save className="h-3.5 w-3.5" /> 현재 설정 저장하기
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </aside>
 
@@ -422,14 +690,18 @@ export default function ScheduleApp() {
                   <input type="datetime-local" value={scheduleEnd} onChange={(e) => setScheduleEnd(e.target.value)} className="w-full border p-2 rounded-xl text-xs" />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {COLOR_PRESETS.map((color) => (
-                  <button key={color} type="button" onClick={() => setScheduleBgColor(color)} style={{ backgroundColor: color }} className="h-6 w-6 rounded-full" />
-                ))}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">일정 색상</label>
+                <div className="flex items-center gap-2">
+                  {COLOR_PRESETS.map((color) => (
+                    <button key={color} type="button" onClick={() => setScheduleBgColor(color)} style={{ backgroundColor: color }} className="h-6 w-6 rounded-full" />
+                  ))}
+                  <input type="color" value={scheduleBgColor} onChange={(e) => setScheduleBgColor(e.target.value)} className="h-8 w-10 cursor-pointer rounded-lg border-0 p-0" />
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button type="button" onClick={() => setShowScheduleModal(false)} className="px-4 py-2 text-xs border rounded-xl font-bold">취소</button>
-                <button type="submit" style={{ backgroundColor: CUSTOM_DESIGN.primaryColor }} className="px-5 py-2 text-xs text-white rounded-xl font-bold shadow-md">저장</button>
+                <button type="submit" style={{ backgroundColor: activeTheme.primaryColor }} className="px-5 py-2 text-xs text-white rounded-xl font-bold shadow-md">저장</button>
               </div>
             </form>
           </div>
@@ -446,7 +718,7 @@ export default function ScheduleApp() {
               <input type="color" value={newCatColor} onChange={(e) => setNewCatColor(e.target.value)} className="h-10 w-full rounded-xl" />
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button type="button" onClick={() => setShowCategoryModal(false)} className="px-4 py-2 text-xs border rounded-xl font-bold">취소</button>
-                <button type="submit" style={{ backgroundColor: CUSTOM_DESIGN.primaryColor }} className="px-5 py-2 text-xs text-white rounded-xl font-bold shadow-md">생성</button>
+                <button type="submit" style={{ backgroundColor: activeTheme.primaryColor }} className="px-5 py-2 text-xs text-white rounded-xl font-bold shadow-md">생성</button>
               </div>
             </form>
           </div>
