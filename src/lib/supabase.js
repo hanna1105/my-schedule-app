@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-// 아래 주소 부분을 Data API에서 복사한 진짜 주소로 교체해 주세요!
-const supabaseUrl = 'https://lxkzsiguvltcebssefdv.supabase.co'
+// 끝에 /rest/v1 이 없는 순수 주소를 입력해야 합니다.
+const supabaseUrl = 'https://lxkzsigultcebssefdv.supabase.co'
 const supabaseAnonKey = 'sb_publishable_r02ELSGuwCwFhuRpPOj9MQ_CLjxmtk7'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
