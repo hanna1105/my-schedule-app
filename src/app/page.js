@@ -11,12 +11,16 @@ import {
   Plus,
   LogOut,
   Trash2,
+  Edit,
   Tag,
   Clock,
   FolderPlus,
   Palette,
   X,
-  Save
+  Save,
+  Upload,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import {
   format,
@@ -32,22 +36,23 @@ import {
   subDays,
   addWeeks,
   subWeeks,
-  parseISO
+  parseISO,
+  startOfDay
 } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
 
-// 보내주신 Coolors 팔레트 색상 (#CDB4DB, #FFC8DD, #FFAFCC, #BDE0FE, #A2D2FF) 적용
+// 기본 파스텔 테마 설정
 const DEFAULT_THEME = {
   id: 'default_pastel',
   name: '파스텔 드림 (기본)',
-  primaryColor: '#FFAFCC',    // 포인트: 캔디 핑크 (#FFAFCC)
-  bgColor: '#BDE0FE',         // 전체 배경: 소프트 블루 (#BDE0FE)
+  primaryColor: '#FFAFCC',    // 포인트 핑크
+  bgColor: '#BDE0FE',         // 소프트 블루
   bgImage: '',
-  headerTextColor: '#3D344D',  // 헤더 글자색
-  bodyTextColor: '#4A3E59',    // 본문 글자색
-  sundayColor: '#EF4444',      // 일요일 글자색
-  saturdayColor: '#3B82F6',    // 토요일 글자색
-  cardBgColor: '#FFFFFF'       // 카드 배경색
+  headerTextColor: '#3D344D',
+  bodyTextColor: '#4A3E59',
+  sundayColor: '#EF4444',     // 일요일 빨강
+  saturdayColor: '#3B82F6',   // 토요일 파랑
+  cardBgColor: '#FFFFFF'
 }
 
 const COLOR_PRESETS = ['#CDB4DB', '#FFC8DD', '#FFAFCC', '#BDE0FE', '#A2D2FF', '#3B82F6', '#10B981', '#F59E0B']
@@ -71,6 +76,7 @@ export default function ScheduleApp() {
   const [savedThemes, setSavedThemes] = useState([DEFAULT_THEME])
   const [newThemeName, setNewThemeName] = useState('')
   const [showThemeEditor, setShowThemeEditor] = useState(false)
+  const [hideThemePanel, setHideThemePanel] = useState(false) // 전체 테마 패널 숨기기 상태
 
   // Modal States
   const [showScheduleModal, setShowScheduleModal] = useState(false)
@@ -89,14 +95,15 @@ export default function ScheduleApp() {
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#FFAFCC')
 
+  // 로컬 스토리지에서 저장된 테마 불러오기
   useEffect(() => {
     try {
-      const localThemes = localStorage.getItem('my_custom_themes_v2')
+      const localThemes = localStorage.getItem('my_custom_themes_v4')
       if (localThemes) {
         const parsed = JSON.parse(localThemes)
         if (Array.isArray(parsed) && parsed.length > 0) setSavedThemes(parsed)
       }
-      const localActiveTheme = localStorage.getItem('my_active_theme_v2')
+      const localActiveTheme = localStorage.getItem('my_active_theme_v4')
       if (localActiveTheme) {
         const parsedActive = JSON.parse(localActiveTheme)
         if (parsedActive) setActiveTheme(parsedActive)
@@ -108,9 +115,9 @@ export default function ScheduleApp() {
 
   const saveThemesToLocal = (themesList, currentActive) => {
     try {
-      localStorage.setItem('my_custom_themes_v2', JSON.stringify(themesList))
+      localStorage.setItem('my_custom_themes_v4', JSON.stringify(themesList))
       if (currentActive) {
-        localStorage.setItem('my_active_theme_v2', JSON.stringify(currentActive))
+        localStorage.setItem('my_active_theme_v4', JSON.stringify(currentActive))
       }
     } catch (e) {
       console.error('Error saving themes:', e)
@@ -201,6 +208,27 @@ export default function ScheduleApp() {
     saveThemesToLocal(updatedList, nextActive)
   }
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      return alert('이미지 파일(.jpg, .png, .gif 등)만 선택할 수 있습니다.')
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result
+      if (dataUrl) {
+        setActiveTheme({
+          ...activeTheme,
+          bgImage: dataUrl
+        })
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
   const openNewScheduleModal = (defaultDate = null) => {
     setEditingSchedule(null)
     setScheduleTitle('')
@@ -286,6 +314,15 @@ export default function ScheduleApp() {
     ? schedules
     : schedules.filter(s => s.category_id === selectedCategory)
 
+  // 이틀 이상 다일 일정 판별 함수
+  const isScheduleOnDay = (sched, day) => {
+    if (!sched.start_time) return false
+    const targetDay = startOfDay(day)
+    const schedStart = startOfDay(parseISO(sched.start_time))
+    const schedEnd = sched.end_time ? startOfDay(parseISO(sched.end_time)) : schedStart
+    return targetDay >= schedStart && targetDay <= schedEnd
+  }
+
   if (authLoading) return <div className="p-8 text-center text-slate-600">로딩 중...</div>
 
   if (!user) {
@@ -327,7 +364,7 @@ export default function ScheduleApp() {
           {days.map((day) => {
             const isCurrentMonth = isSameMonth(day, currentDate)
             const isToday = isSameDay(day, new Date())
-            const daySchedules = filteredSchedules.filter(s => isSameDay(parseISO(s.start_time), day))
+            const daySchedules = filteredSchedules.filter(s => isScheduleOnDay(s, day))
 
             return (
               <div
@@ -463,144 +500,213 @@ export default function ScheduleApp() {
               <h3 className="text-xs font-bold opacity-60 uppercase tracking-wider flex items-center gap-1">
                 <Palette className="h-3.5 w-3.5" /> 실시간 테마 커스텀
               </h3>
-              <button
-                onClick={() => setShowThemeEditor(!showThemeEditor)}
-                style={{ color: activeTheme.primaryColor }}
-                className="text-xs font-bold underline"
-              >
-                {showThemeEditor ? '닫기' : '편집기'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowThemeEditor(!showThemeEditor)}
+                  style={{ color: activeTheme.primaryColor }}
+                  className="text-xs font-bold underline"
+                >
+                  {showThemeEditor ? '편집기 닫기' : '편집기'}
+                </button>
+                {/* 패널 접기/펼치기 눈 아이콘 */}
+                <button
+                  onClick={() => setHideThemePanel(!hideThemePanel)}
+                  className="text-slate-400 hover:text-slate-600 text-xs flex items-center gap-0.5"
+                  title={hideThemePanel ? '테마 패널 펼치기' : '테마 패널 접기'}
+                >
+                  {hideThemePanel ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
-            {/* Saved Themes List */}
-            <div>
-              <p className="text-[11px] opacity-60 mb-2">내 저장 테마 목록 (클릭하면 변경):</p>
-              <div className="grid grid-cols-2 gap-2">
-                {savedThemes.map((theme) => (
-                  <div
-                    key={theme.id}
-                    onClick={() => applyTheme(theme)}
-                    style={{ borderColor: activeTheme.id === theme.id ? activeTheme.primaryColor : '#E2E8F0' }}
-                    className={`flex items-center justify-between p-2 rounded-xl border cursor-pointer hover:shadow-2xs transition ${activeTheme.id === theme.id ? 'ring-2 ring-indigo-200' : ''}`}
-                  >
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: theme.primaryColor }} />
-                      <span className="text-xs font-bold truncate">{theme.name}</span>
+            {!hideThemePanel && (
+              <>
+                {/* Saved Themes List */}
+                <div>
+                  <p className="text-[11px] opacity-60 mb-2">내 저장 테마 목록 (클릭하면 변경):</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {savedThemes.map((theme) => (
+                      <div
+                        key={theme.id}
+                        onClick={() => applyTheme(theme)}
+                        style={{ borderColor: activeTheme.id === theme.id ? activeTheme.primaryColor : '#E2E8F0' }}
+                        className={`flex items-center justify-between p-2 rounded-xl border cursor-pointer hover:shadow-2xs transition ${activeTheme.id === theme.id ? 'ring-2 ring-indigo-200' : ''}`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: theme.primaryColor }} />
+                          <span className="text-xs font-bold truncate">{theme.name}</span>
+                        </div>
+                        {savedThemes.length > 1 && (
+                          <button onClick={(e) => handleDeleteTheme(theme.id, e)} className="text-slate-300 hover:text-red-500 p-0.5">
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live Color Picker Controls */}
+                {showThemeEditor && (
+                  <div className="pt-4 border-t border-slate-100 space-y-3 text-xs">
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">포인트 색상 (Primary)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={activeTheme.primaryColor}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, primaryColor: e.target.value })}
+                          className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                        />
+                        <input
+                          type="text"
+                          value={activeTheme.primaryColor}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, primaryColor: e.target.value })}
+                          className="w-full border p-1 rounded-md text-xs font-mono"
+                        />
+                      </div>
                     </div>
-                    {savedThemes.length > 1 && (
-                      <button onClick={(e) => handleDeleteTheme(theme.id, e)} className="text-slate-300 hover:text-red-500 p-0.5">
-                        <X className="h-3 w-3" />
+
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">배경 색상 (Background)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={activeTheme.bgColor}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, bgColor: e.target.value })}
+                          className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                        />
+                        <input
+                          type="text"
+                          value={activeTheme.bgColor}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, bgColor: e.target.value })}
+                          className="w-full border p-1 rounded-md text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 내 PC 이미지 파일 선택 버튼 */}
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">배경 이미지 파일 (내 PC에서 선택)</label>
+                      <label className="flex items-center justify-center gap-1.5 w-full py-2 border border-slate-300 rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition mb-2">
+                        <Upload className="h-3.5 w-3.5 text-indigo-600" /> 내 PC에서 사진 선택하기
+                        <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                      </label>
+                      {activeTheme.bgImage && (
+                        <button
+                          onClick={() => setActiveTheme({ ...activeTheme, bgImage: '' })}
+                          className="text-[10px] text-red-500 hover:underline block mb-1"
+                        >
+                          [배경 이미지 제거]
+                        </button>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">또는 인터넷 이미지 URL 주소</label>
+                      <input
+                        type="text"
+                        value={activeTheme.bgImage || ''}
+                        onChange={(e) => setActiveTheme({ ...activeTheme, bgImage: e.target.value })}
+                        placeholder="https://... 이미지 URL 주소"
+                        className="w-full border p-1.5 rounded-md text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">상단 타이틀 글자색</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={activeTheme.headerTextColor}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, headerTextColor: e.target.value })}
+                          className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                        />
+                        <input
+                          type="text"
+                          value={activeTheme.headerTextColor}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, headerTextColor: e.target.value })}
+                          className="w-full border p-1 rounded-md text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">본문/카테고리 글자색</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={activeTheme.bodyTextColor}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, bodyTextColor: e.target.value })}
+                          className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                        />
+                        <input
+                          type="text"
+                          value={activeTheme.bodyTextColor}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, bodyTextColor: e.target.value })}
+                          className="w-full border p-1 rounded-md text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 일요일 글자색 */}
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">일요일 글자색</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={activeTheme.sundayColor || '#EF4444'}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, sundayColor: e.target.value })}
+                          className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                        />
+                        <input
+                          type="text"
+                          value={activeTheme.sundayColor || '#EF4444'}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, sundayColor: e.target.value })}
+                          className="w-full border p-1 rounded-md text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 토요일 글자색 */}
+                    <div>
+                      <label className="block text-[11px] font-bold mb-1">토요일 글자색</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={activeTheme.saturdayColor || '#3B82F6'}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, saturdayColor: e.target.value })}
+                          className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
+                        />
+                        <input
+                          type="text"
+                          value={activeTheme.saturdayColor || '#3B82F6'}
+                          onChange={(e) => setActiveTheme({ ...activeTheme, saturdayColor: e.target.value })}
+                          className="w-full border p-1 rounded-md text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Save Theme Action */}
+                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                      <input
+                        type="text"
+                        value={newThemeName}
+                        onChange={(e) => setNewThemeName(e.target.value)}
+                        placeholder="새 테마 이름 (예: 리본 핑크 테마)"
+                        className="w-full border p-1.5 rounded-md text-xs"
+                      />
+                      <button
+                        onClick={handleSaveCurrentTheme}
+                        style={{ backgroundColor: activeTheme.primaryColor }}
+                        className="w-full text-white py-1.5 rounded-md font-bold flex items-center justify-center gap-1"
+                      >
+                        <Save className="h-3.5 w-3.5" /> 현재 설정 저장하기
                       </button>
-                    )}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Live Color Picker Controls */}
-            {showThemeEditor && (
-              <div className="pt-4 border-t border-slate-100 space-y-3 text-xs">
-                <div>
-                  <label className="block text-[11px] font-bold mb-1">포인트 색상 (Primary)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={activeTheme.primaryColor}
-                      onChange={(e) => setActiveTheme({ ...activeTheme, primaryColor: e.target.value })}
-                      className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
-                    />
-                    <input
-                      type="text"
-                      value={activeTheme.primaryColor}
-                      onChange={(e) => setActiveTheme({ ...activeTheme, primaryColor: e.target.value })}
-                      className="w-full border p-1 rounded-md text-xs font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold mb-1">배경 색상 (Background)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={activeTheme.bgColor}
-                      onChange={(e) => setActiveTheme({ ...activeTheme, bgColor: e.target.value })}
-                      className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
-                    />
-                    <input
-                      type="text"
-                      value={activeTheme.bgColor}
-                      onChange={(e) => setActiveTheme({ ...activeTheme, bgColor: e.target.value })}
-                      className="w-full border p-1 rounded-md text-xs font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold mb-1">배경 이미지/패턴 URL</label>
-                  <input
-                    type="text"
-                    value={activeTheme.bgImage || ''}
-                    onChange={(e) => setActiveTheme({ ...activeTheme, bgImage: e.target.value })}
-                    placeholder="https://... 이미지 URL 주소"
-                    className="w-full border p-1.5 rounded-md text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold mb-1">상단 타이틀 글자색</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={activeTheme.headerTextColor}
-                      onChange={(e) => setActiveTheme({ ...activeTheme, headerTextColor: e.target.value })}
-                      className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
-                    />
-                    <input
-                      type="text"
-                      value={activeTheme.headerTextColor}
-                      onChange={(e) => setActiveTheme({ ...activeTheme, headerTextColor: e.target.value })}
-                      className="w-full border p-1 rounded-md text-xs font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold mb-1">본문/카테고리 글자색</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={activeTheme.bodyTextColor}
-                      onChange={(e) => setActiveTheme({ ...activeTheme, bodyTextColor: e.target.value })}
-                      className="h-7 w-10 cursor-pointer border-0 rounded-md p-0"
-                    />
-                    <input
-                      type="text"
-                      value={activeTheme.bodyTextColor}
-                      onChange={(e) => setActiveTheme({ ...activeTheme, bodyTextColor: e.target.value })}
-                      className="w-full border p-1 rounded-md text-xs font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* Save Theme Action */}
-                <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <input
-                    type="text"
-                    value={newThemeName}
-                    onChange={(e) => setNewThemeName(e.target.value)}
-                    placeholder="새 테마 이름 (예: 파스텔 드림)"
-                    className="w-full border p-1.5 rounded-md text-xs"
-                  />
-                  <button
-                    onClick={handleSaveCurrentTheme}
-                    style={{ backgroundColor: activeTheme.primaryColor }}
-                    className="w-full text-white py-1.5 rounded-md font-bold flex items-center justify-center gap-1"
-                  >
-                    <Save className="h-3.5 w-3.5" /> 현재 설정 저장하기
-                  </button>
-                </div>
-              </div>
+                )}
+              </>
             )}
           </div>
         </aside>
