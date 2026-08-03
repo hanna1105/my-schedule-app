@@ -48,15 +48,15 @@ const CUSTOM_DESIGN = {
   // 2. 전체 앱 배경 (이미지/패턴 URL 또는 색상)
   // - 이미지/패턴 사용 시: "url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809')"
   // - 단색만 사용 시: "none"
-  backgroundImage: "https://chatgpt.com/backend-api/estuary/content?id=file_000000008ee48211ba2441e7f82b160b&ts=496037&p=fs&cid=1&sig=9f98f46db3fe986c7c603a7db8784f10fea8761ec5e0272a7f5bcc53c88338d8&v=0",
+  backgroundImage: "url('https://chatgpt.com/backend-api/estuary/content?id=file_000000008ee48211ba2441e7f82b160b&ts=496037&p=fs&cid=1&sig=9f98f46db3fe986c7c603a7db8784f10fea8761ec5e0272a7f5bcc53c88338d8&v=0)",
   backgroundColor: "#F1F5F9", 
 
   // 3. 주요 글씨 색상
   headerTitleColor: '#1E293B',  // 상단 대제목 글자색
   bodyTextColor: '#475569',      // 본문 / 카테고리 글자색
   calendarDateColor: '#334155',  // 평일 날짜 글자색
-  sundayColor: '#EF4444',        // 일요일 글자색
-  saturdayColor: '#3B82F6',      // 토요일 글자색
+  sundayColor: '#ffafcc',        // 일요일 글자색
+  saturdayColor: '#a2d2ff',      // 토요일 글자색
 
   // 4. 카드 및 모달 배경색
   cardBackgroundColor: '#FFFFFF',
