@@ -422,7 +422,7 @@ export default function ScheduleApp() {
             <CalendarIcon className="h-5 w-5" />
           </div>
           <div>
-            <h1 style={{ color: activeTheme.headerTextColor }} className="text-lg font-bold">일정 관리 툴</h1>
+            <h1 style={{ color: activeTheme.headerTextColor }} className="text-lg font-bold">2026</h1>
             <p className="text-xs opacity-70">{user.email}</p>
           </div>
         </div>
