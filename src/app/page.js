@@ -11,15 +11,12 @@ import {
   Plus,
   LogOut,
   Trash2,
-  Edit,
   Tag,
   Clock,
   FolderPlus,
   Palette,
   X,
-  Save,
-  Image as ImageIcon,
-  Check
+  Save
 } from 'lucide-react'
 import {
   format,
@@ -39,74 +36,21 @@ import {
 } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
 
-// 기본 테마 설정
+// 보내주신 Coolors 팔레트 색상 (#CDB4DB, #FFC8DD, #FFAFCC, #BDE0FE, #A2D2FF) 적용
 const DEFAULT_THEME = {
-  id: 'default',
-  name: '기본 보라',
-  primaryColor: '#4F46E5',
-  bgColor: '#F1F5F9',
+  id: 'default_pastel',
+  name: '파스텔 드림 (기본)',
+  primaryColor: '#FFAFCC',    // 포인트: 캔디 핑크 (#FFAFCC)
+  bgColor: '#BDE0FE',         // 전체 배경: 소프트 블루 (#BDE0FE)
   bgImage: '',
-  headerTextColor: '#1E293B',
-  bodyTextColor: '#475569',
-  sundayColor: '#EF4444',
-  saturdayColor: '#3B82F6',
-  cardBgColor: '#FFFFFF'
+  headerTextColor: '#3D344D',  // 헤더 글자색
+  bodyTextColor: '#4A3E59',    // 본문 글자색
+  sundayColor: '#EF4444',      // 일요일 글자색
+  saturdayColor: '#3B82F6',    // 토요일 글자색
+  cardBgColor: '#FFFFFF'       // 카드 배경색
 }
 
-// 기본 프리셋 테마 목록
-const INITIAL_PRESET_THEMES = [
-  DEFAULT_THEME,
-  {
-    id: 'pink',
-    name: '감성 핑크',
-    primaryColor: '#EC4899',
-    bgColor: '#FDF2F8',
-    bgImage: '',
-    headerTextColor: '#831843',
-    bodyTextColor: '#9D174D',
-    sundayColor: '#EF4444',
-    saturdayColor: '#3B82F6',
-    cardBgColor: '#FFFFFF'
-  },
-  {
-    id: 'emerald',
-    name: '민트 에메랄드',
-    primaryColor: '#10B981',
-    bgColor: '#ECFDF5',
-    bgImage: '',
-    headerTextColor: '#064E3B',
-    bodyTextColor: '#047857',
-    sundayColor: '#EF4444',
-    saturdayColor: '#3B82F6',
-    cardBgColor: '#FFFFFF'
-  },
-  {
-    id: 'amber',
-    name: '따뜻한 앰버',
-    primaryColor: '#F59E0B',
-    bgColor: '#FFFBEB',
-    bgImage: '',
-    headerTextColor: '#78350F',
-    bodyTextColor: '#B45309',
-    sundayColor: '#EF4444',
-    saturdayColor: '#3B82F6',
-    cardBgColor: '#FFFFFF'
-  },
-  {
-    id: 'dark',
-    name: '다크 레트로',
-    primaryColor: '#6366F1',
-    bgColor: '#0F172A',
-    bgImage: '',
-    headerTextColor: '#F8FAFC',
-    bodyTextColor: '#CBD5E1',
-    sundayColor: '#F87171',
-    saturdayColor: '#60A5FA',
-    cardBgColor: '#1E293B'
-  }
-]
-
-const COLOR_PRESETS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6']
+const COLOR_PRESETS = ['#CDB4DB', '#FFC8DD', '#FFAFCC', '#BDE0FE', '#A2D2FF', '#3B82F6', '#10B981', '#F59E0B']
 
 export default function ScheduleApp() {
   const [user, setUser] = useState(null)
@@ -124,7 +68,7 @@ export default function ScheduleApp() {
 
   // --- 실시간 테마 커스텀 상태 ---
   const [activeTheme, setActiveTheme] = useState(DEFAULT_THEME)
-  const [savedThemes, setSavedThemes] = useState(INITIAL_PRESET_THEMES)
+  const [savedThemes, setSavedThemes] = useState([DEFAULT_THEME])
   const [newThemeName, setNewThemeName] = useState('')
   const [showThemeEditor, setShowThemeEditor] = useState(false)
 
@@ -139,21 +83,20 @@ export default function ScheduleApp() {
   const [scheduleStart, setScheduleStart] = useState('')
   const [scheduleEnd, setScheduleEnd] = useState('')
   const [scheduleCategoryId, setScheduleCategoryId] = useState('')
-  const [scheduleBgColor, setScheduleBgColor] = useState('#3B82F6')
+  const [scheduleBgColor, setScheduleBgColor] = useState('#FFAFCC')
 
   // Category Form States
   const [newCatName, setNewCatName] = useState('')
-  const [newCatColor, setNewCatColor] = useState('#3B82F6')
+  const [newCatColor, setNewCatColor] = useState('#FFAFCC')
 
-  // 로컬 스토리지에서 저장된 테마 불러오기
   useEffect(() => {
     try {
-      const localThemes = localStorage.getItem('my_custom_themes')
+      const localThemes = localStorage.getItem('my_custom_themes_v2')
       if (localThemes) {
         const parsed = JSON.parse(localThemes)
         if (Array.isArray(parsed) && parsed.length > 0) setSavedThemes(parsed)
       }
-      const localActiveTheme = localStorage.getItem('my_active_theme')
+      const localActiveTheme = localStorage.getItem('my_active_theme_v2')
       if (localActiveTheme) {
         const parsedActive = JSON.parse(localActiveTheme)
         if (parsedActive) setActiveTheme(parsedActive)
@@ -165,9 +108,9 @@ export default function ScheduleApp() {
 
   const saveThemesToLocal = (themesList, currentActive) => {
     try {
-      localStorage.setItem('my_custom_themes', JSON.stringify(themesList))
+      localStorage.setItem('my_custom_themes_v2', JSON.stringify(themesList))
       if (currentActive) {
-        localStorage.setItem('my_active_theme', JSON.stringify(currentActive))
+        localStorage.setItem('my_active_theme_v2', JSON.stringify(currentActive))
       }
     } catch (e) {
       console.error('Error saving themes:', e)
@@ -226,7 +169,6 @@ export default function ScheduleApp() {
     await supabase.auth.signOut()
   }
 
-  // 테마 적용 및 저장
   const applyTheme = (theme) => {
     setActiveTheme(theme)
     saveThemesToLocal(savedThemes, theme)
@@ -259,7 +201,6 @@ export default function ScheduleApp() {
     saveThemesToLocal(updatedList, nextActive)
   }
 
-  // Schedule CRUD
   const openNewScheduleModal = (defaultDate = null) => {
     setEditingSchedule(null)
     setScheduleTitle('')
@@ -533,7 +474,7 @@ export default function ScheduleApp() {
 
             {/* Saved Themes List */}
             <div>
-              <p className="text-[11px] opacity-60 mb-2">저장된 테마 목록 (클릭하면 변경):</p>
+              <p className="text-[11px] opacity-60 mb-2">내 저장 테마 목록 (클릭하면 변경):</p>
               <div className="grid grid-cols-2 gap-2">
                 {savedThemes.map((theme) => (
                   <div
@@ -546,7 +487,7 @@ export default function ScheduleApp() {
                       <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: theme.primaryColor }} />
                       <span className="text-xs font-bold truncate">{theme.name}</span>
                     </div>
-                    {savedThemes.length > 1 && !INITIAL_PRESET_THEMES.find(t => t.id === theme.id) && (
+                    {savedThemes.length > 1 && (
                       <button onClick={(e) => handleDeleteTheme(theme.id, e)} className="text-slate-300 hover:text-red-500 p-0.5">
                         <X className="h-3 w-3" />
                       </button>
@@ -648,7 +589,7 @@ export default function ScheduleApp() {
                     type="text"
                     value={newThemeName}
                     onChange={(e) => setNewThemeName(e.target.value)}
-                    placeholder="새 테마 이름 (예: 나만의 핑크)"
+                    placeholder="새 테마 이름 (예: 파스텔 드림)"
                     className="w-full border p-1.5 rounded-md text-xs"
                   />
                   <button
