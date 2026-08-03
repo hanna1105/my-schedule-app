@@ -42,13 +42,13 @@ import { ko } from 'date-fns/locale/ko'
 // =========================================================================
 const CUSTOM_DESIGN = {
   // 1. 포인트 컬러 (달력 이모티콘, +일정추가 버튼, 오늘 날짜 배지, '추가' 링크 등)
-  // 예시 색상: '#4F46E5' (보라), '#EC4899' (핑크), '#10B981' (에메랄드), '#F97316' (오렌지)
-  primaryColor: '#4F46E5',
+  // 예시 색상: '#cdb4db' (Pink Orchid), '#ffafcc' (Pastel Petal), '#ffafcc' (Blush Pop), '#bde0fe' (Icy Blue), '#a2d2ff' (Sky Blue)
+  primaryColor: '#ffafcc',
 
   // 2. 전체 앱 배경 (이미지/패턴 URL 또는 색상)
   // - 이미지/패턴 사용 시: "url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809')"
   // - 단색만 사용 시: "none"
-  backgroundImage: "none",
+  backgroundImage: "https://chatgpt.com/backend-api/estuary/content?id=file_000000008ee48211ba2441e7f82b160b&ts=496037&p=fs&cid=1&sig=9f98f46db3fe986c7c603a7db8784f10fea8761ec5e0272a7f5bcc53c88338d8&v=0",
   backgroundColor: "#F1F5F9", 
 
   // 3. 주요 글씨 색상
