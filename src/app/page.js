@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '../lib/supabase'
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -30,7 +30,7 @@ import {
   subWeeks,
   parseISO
 } from 'date-fns'
-import { ko } from 'date-fns/locale'
+import { ko } from 'date-fns/locale/ko'
 
 export default function ScheduleApp() {
   const [user, setUser] = useState(null)
